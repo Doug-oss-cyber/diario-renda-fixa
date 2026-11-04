@@ -60,6 +60,10 @@ Apliquei 10.000 reais num CDB do Banco Inter, 105% do CDI, vence em janeiro de 2
 ## Casos de teste
 ## Escolhas de escopo (o que decidi não fazer)
 ## Mudanças de ideia durante o projeto
+## Anotações gerais
+ ### 04/11/2026
+    Caso 6, motivo_declarado: "reserva". Isso é a origem do dinheiro, e o prompt diz que origem pode contar como motivo.
+    Caso 6, taxa_valor. O modelo devolveu "8,67% a.a" e o gabarito tem "8,67% a.a.". Isso não é erro do modelo, e sim a necessidade de normalizar o texto na comparação.
 ## Uso de ferramentas de IA
 
 A partir do dia 02/11/2026, foi iniciada a ideia do projeto para criar um diário de operações de renda fixa e usei a
