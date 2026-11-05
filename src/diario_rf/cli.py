@@ -1,10 +1,28 @@
-"""Interface de terminal: lê uma anotação e imprime o registro estruturado."""
+"""Interface de terminal: captura a entrada e apresenta o resultado ou o erro."""
 import argparse
 import json
 import sys
 
-from .config import ConfigError, carregar_config
-from .llm_client import LLMError, extrair_registro
+from .config import carregar_config
+from .erros import EntradaVazia, ErroDiario
+from .llm_client import extrair_registro
+
+
+def _ler_entrada(argumento: str | None) -> str:
+    if argumento is not None:
+        return argumento
+    try:
+        return input("Anotação: ")
+    except EOFError:
+        return ""
+
+
+def _apresentar(resposta: str) -> None:
+    # A validação estrutural do JSON entra com o parser.py.
+    try:
+        print(json.dumps(json.loads(resposta), ensure_ascii=False, indent=2))
+    except json.JSONDecodeError:
+        print(resposta)
 
 
 def main() -> int:
@@ -12,23 +30,17 @@ def main() -> int:
     ap.add_argument("anotacao", nargs="?", help="texto da anotação (opcional)")
     args = ap.parse_args()
 
-    texto = args.anotacao or input("Anotação: ")
-    if not texto.strip():
-        print("Erro: a anotação está vazia.", file=sys.stderr)
-        return 1
-
     try:
+        texto = _ler_entrada(args.anotacao)
+        if not texto.strip():
+            raise EntradaVazia()
         cfg = carregar_config()
         resposta = extrair_registro(texto, cfg)
-    except (ConfigError, LLMError) as e:
-        print(f"Erro: {e}", file=sys.stderr)
+    except ErroDiario as e:
+        print(f"Erro: {e.mensagem}", file=sys.stderr)
         return 1
 
-    # No Básico só exibimos; a validação do JSON fica para o Intermediário.
-    try:
-        print(json.dumps(json.loads(resposta), ensure_ascii=False, indent=2))
-    except json.JSONDecodeError:
-        print(resposta)
+    _apresentar(resposta)
     return 0
 
 
