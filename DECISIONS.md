@@ -101,8 +101,6 @@ Apliquei 10.000 reais num CDB do Banco Inter, 105% do CDI, vence em janeiro de 2
   ```
 ## Uso de ferramentas de IA
 
-## Uso de ferramentas de IA
-
 A ideia do projeto, um diário de operações de renda fixa, surgiu em 02/11/2026. Durante o desenvolvimento, usei o Claude (Anthropic) como apoio, nos seguintes pontos:
 
 - **Escopo:** orientações para definir e delimitar o projeto.
