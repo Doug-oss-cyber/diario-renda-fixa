@@ -22,9 +22,8 @@ imprime um registro em JSON.
 
 **Entrada**
 
-```text
 Apliquei 10.000 reais num CDB do Banco Inter, 105% do CDI, vence em janeiro de 2029, liquidez no vencimento.
-```
+
 
 **Saída**
 
@@ -60,11 +59,57 @@ Apliquei 10.000 reais num CDB do Banco Inter, 105% do CDI, vence em janeiro de 2
 ## Casos de teste
 ## Escolhas de escopo (o que decidi não fazer)
 ## Mudanças de ideia durante o projeto
-## Anotações gerais
- ### 04/11/2026
-    Caso 6, motivo_declarado: "reserva". Isso é a origem do dinheiro, e o prompt diz que origem pode contar como motivo.
-    Caso 6, taxa_valor. O modelo devolveu "8,67% a.a" e o gabarito tem "8,67% a.a.". Isso não é erro do modelo, e sim a necessidade de normalizar o texto na comparação.
+
+- 02/11/2026
+
+  ```
+  Inicialmente o projeto seria voltado para operações de renda variável na Nasdaq, 
+  principalmente nos setores de tecnologia e inteligência artificial, porém como é 
+  algo não tão comum quanto operações de renda fixa em meu meio, a ideia para um 
+  diário de operações de investimentos de renda fixa foi mantida, mas com um segmento 
+  distinto e mais conhecido.
+  ```
+
+  ```
+  No caso 7 do gabarito, havia um trecho entre parênteses ("pós-fixado com spread, 
+  diferente de % do CDI") que foi removido para não entregar a resposta ao modelo.
+  ```
+  
+- 03/11/2026
+   ```
+   O campo campos_ausentes é calculado em código, e não pelo modelo, por ser uma
+   derivação determinística (diferença entre os campos esperados e os extraídos).
+   Isso evita erros do modelo nessa checagem e reduz tokens de saída.
+   ```
+  
+   ```
+  A escolha pelo modelo Gemini é temporária haja vista que o LLM institucional ainda 
+  não tinha sido liberada nesta data.
+  ```
+## Resultados e limitações
+
+- 04/11/2026
+
+  ```
+  Caso 6, motivo_declarado: "reserva". Isso é a origem do dinheiro, e o prompt diz 
+  que origem pode contar como motivo.
+  ```
+  
+  ```
+  Caso 6, taxa_valor. O modelo devolveu "8,67% a.a" e o gabarito tem "8,67% a.a.". 
+  Isso não é erro do modelo, e sim a necessidade de normalizar o texto na comparação.
+  ```
 ## Uso de ferramentas de IA
 
-A partir do dia 02/11/2026, foi iniciada a ideia do projeto para criar um diário de operações de renda fixa e usei a
-IA Claude da Anthropic para orientações sobre escopo e auxílio com código.
+## Uso de ferramentas de IA
+
+A ideia do projeto, um diário de operações de renda fixa, surgiu em 02/11/2026. Durante o desenvolvimento, usei o Claude (Anthropic) como apoio, nos seguintes pontos:
+
+- **Escopo:** orientações para definir e delimitar o projeto.
+- **Código:** esqueleto inicial dos arquivos `config.py`, `llm_client.py` e `cli.py`.
+- **Revisão:** análise do schema de saída e do gabarito.
+- **Git:** orientações sobre o fluxo de versionamento.
+
+A definição do problema, as decisões de projeto, a escrita do código final, os ajustes e a validação dos resultados foram feitos por mim.
+
+## Critérios de aceite
