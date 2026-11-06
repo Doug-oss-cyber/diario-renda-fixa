@@ -6,6 +6,7 @@ import sys
 from .config import carregar_config
 from .erros import EntradaVazia, ErroDiario
 from .llm_client import extrair_registro
+from .parser import interpretar_resposta
 
 
 def _ler_entrada(argumento: str | None) -> str:
@@ -15,14 +16,6 @@ def _ler_entrada(argumento: str | None) -> str:
         return input("Anotação: ")
     except EOFError:
         return ""
-
-
-def _apresentar(resposta: str) -> None:
-    # A validação estrutural do JSON entra com o parser.py.
-    try:
-        print(json.dumps(json.loads(resposta), ensure_ascii=False, indent=2))
-    except json.JSONDecodeError:
-        print(resposta)
 
 
 def main() -> int:
@@ -36,11 +29,12 @@ def main() -> int:
             raise EntradaVazia()
         cfg = carregar_config()
         resposta = extrair_registro(texto, cfg)
+        registro = interpretar_resposta(resposta)
     except ErroDiario as e:
         print(f"Erro: {e.mensagem}", file=sys.stderr)
         return 1
 
-    _apresentar(resposta)
+    print(json.dumps(registro, ensure_ascii=False, indent=2))
     return 0
 
 
