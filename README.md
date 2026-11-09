@@ -149,7 +149,7 @@ nas mensagens de erro. O arquivo `tests/gabarito.jsonl` traz 10 relatos fictíci
 resultado esperado e tem a sua estrutura verificada por teste.
 
 **Testes reais (manuais).** Executados com a API de verdade, com as saídas registradas em
-[`docs/evidencias.md`](docs/evidencias.md):
+[`docs/evidences.md`](docs/evidences.md):
 
 | Cenário | Tipo |
 |---|---|
@@ -170,7 +170,7 @@ src/diario_rf/
   erros.py       exceções com mensagens para o usuário
   cli.py         captura a entrada e apresenta o resultado
 tests/           testes automáticos (simulados) e gabarito.jsonl
-DECISIONS.md     decisões, resultados, limitações e uso de IA
+docs/decisions.md     decisões, resultados, limitações e uso de IA
 ```
 
 ## Limitações conhecidas
@@ -193,4 +193,4 @@ seus ou de outras pessoas.
 ## Decisões e uso de IA
 
 As decisões de projeto, os resultados dos testes e a declaração do uso de ferramentas
-de IA estão em [`DECISIONS.md`](DECISIONS.md).
+de IA estão em [`docs/decisions.md`](docs/decisions.md).

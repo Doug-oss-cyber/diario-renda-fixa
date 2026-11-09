@@ -52,12 +52,49 @@ Apliquei 10.000 reais num CDB do Banco Inter, 105% do CDI, vence em janeiro de 2
 }
 ```
 ## Por que um LLM
+Os relatos vêm em texto livre, com gíria, expressões regionais, abreviação, informação faltando, sonhos, e
+opinião misturada com operação. Regras fixas (regex, palavras-chave, algoritmos comuns) não cobrem essa  variedade. 
+O LLM interpreta o texto e devolve campos fixos e estruturados; o código valida a forma e recalcula o que é 
+determinístico (campos_ausentes).
+
 ## Acesso ao LLM (provedor, modelo, API REST)
+- Provedor: Google AI Studio (Gemini), API REST `generateContent`, plano gratuito.
+- Modelo: gemini-3.1-flash-lite.
+- Escolha temporária: o LLM institucional ainda não estava liberado em 03/11/2026.
+- Chave em variável de ambiente (.env, fora do Git).
+
 ## Parâmetros configurados
+- LLM_TEMPERATURE=0: extração precisa de respostas consistentes.
+- LLM_MAX_TOKENS=2048: relatos com mais de uma operação geram JSON longo.
+- LLM_TIMEOUT_SEGUNDOS=30: valor observado nos testes e tendência padrão.
+
 ## Organização do código
+Um módulo por responsabilidade: cli (entrada/apresentação), config, prompts
+(preparação), llm_client (chamada), parser (resposta), erros (mensagens).
+
 ## Erros tratados
+Resumo + referência à tabela do README. Decisão sobre repetir a chamada:
+[sua decisão e motivo. Se não repete: evita gastar a cota gratuita e o usuário
+pode tentar de novo.]
+Fronteira do parser: valida a forma do JSON, não o conteúdo (exemplo: "banco"
+preenchido como emissor).
+
 ## Casos de teste
+- Gabarito: 10 relatos fictícios com resultado esperado.
+- 42 testes simulados (config, cliente HTTP, parser, entrada vazia, CLI).
+- Testes reais: fluxo normal, credencial inválida, credencial ausente
+  (evidências em docs/evidencias.md).
+
 ## Escolhas de escopo (o que decidi não fazer)
+- Não recomenda nem avalia investimentos.
+- Não confere se valores e taxas existiram, nem isenção de imposto ou risco.
+- Sem banco de dados e sem interface web. Só português do Brasil.
+- [Repetição automática da chamada, se for o caso.]
+
+## Critérios de aceite
+[Lista verificável: entrada vazia é rejeitada; cada erro previsto gera mensagem
+sem traceback e sem chave; os testes simulados passam; o fluxo normal funciona
+com a API real; o README permite rodar em ambiente limpo.]
 ## Mudanças de ideia durante o projeto
 
 - 02/11/2026
@@ -109,5 +146,3 @@ A ideia do projeto, um diário de operações de renda fixa, surgiu em 02/11/202
 - **Git:** orientações sobre o fluxo de versionamento.
 
 A definição do problema, as decisões de projeto, a escrita do código final, os ajustes e a validação dos resultados foram feitos por mim.
-
-## Critérios de aceite
