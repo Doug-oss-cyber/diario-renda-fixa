@@ -5,7 +5,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from unittest import mock
 
 from helpers.auxiliar import (
-    CHAVE_FALSA, ENV_VALIDO, REGISTRO_CDB, ambiente, corpo_api, resposta_falsa,
+    CHAVE_FALSA, ENV_VALIDO, REGISTRO_CDB, ambiente, corpo_api, resposta_falsa, servidor_pronto
 )
 from diario_rf import cli
 
@@ -13,9 +13,9 @@ POST = "diario_rf.llm_client.requests.post"
 
 
 def rodar(argv, resposta=None):
-    """Executa cli.main() e devolve (código, stdout, stderr)."""
     saida, erro = io.StringIO(), io.StringIO()
     with mock.patch("sys.argv", ["cli", *argv]), \
+            servidor_pronto(), \
             mock.patch(POST, return_value=resposta), \
             redirect_stdout(saida), redirect_stderr(erro):
         codigo = cli.main()
@@ -52,7 +52,7 @@ class TestCli(unittest.TestCase):
     def test_credencial_ausente(self):
         env = {k: v for k, v in ENV_VALIDO.items() if k != "LLM_API_KEY"}
         with ambiente(**env):
-            self.conferir_erro(*rodar(["oi"]), "Credencial ausente")
+            self.conferir_erro(*rodar(["oi"], resposta_falsa(401, {})), "Credencial ausente")
 
     def test_credencial_invalida(self):
         with ambiente(**ENV_VALIDO):
@@ -69,8 +69,14 @@ class TestCli(unittest.TestCase):
 
     def test_resposta_vazia(self):
         with ambiente(**ENV_VALIDO):
-            self.conferir_erro(*rodar(["oi"], resposta_falsa(200, {"candidates": []})), "vazia ou em formato inesperado")
+            self.conferir_erro(*rodar(["oi"], resposta_falsa(200, {"message": {}})),
+                               "vazia ou em formato inesperado")
 
+    def test_anotacao_pela_variavel_de_ambiente(self):
+        resp = resposta_falsa(200, corpo_api(json.dumps(REGISTRO_CDB)))
+        with ambiente(**ENV_VALIDO, DIARIO_ANOTACAO="Apliquei 10 mil num CDB"):
+            codigo, saida, erro = rodar([], resp)
+        self.assertEqual(codigo, 0)
 
 if __name__ == "__main__":
     unittest.main()

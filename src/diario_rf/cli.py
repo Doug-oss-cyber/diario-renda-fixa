@@ -1,6 +1,7 @@
 """Interface de terminal: captura a entrada e apresenta o resultado ou o erro."""
 import argparse
 import json
+import os
 import sys
 
 from .config import carregar_config
@@ -9,9 +10,12 @@ from .llm_client import extrair_registro
 from .parser import interpretar_resposta
 
 
-def _ler_entrada(argumento: str | None) -> str:
+def _ler_entrada(argumento):
     if argumento is not None:
         return argumento
+    do_ambiente = os.getenv("DIARIO_ANOTACAO")
+    if do_ambiente is not None:
+        return do_ambiente
     try:
         return input("Anotação: ")
     except EOFError:
