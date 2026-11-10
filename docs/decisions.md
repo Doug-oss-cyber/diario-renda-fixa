@@ -73,11 +73,6 @@ Um módulo por responsabilidade: cli (entrada/apresentação), config, prompts
 (preparação), llm_client (chamada), parser (resposta), erros (mensagens).
 
 ## Erros tratados
-Resumo + referência à tabela do README. Decisão sobre repetir a chamada:
-[sua decisão e motivo. Se não repete: evita gastar a cota gratuita e o usuário
-pode tentar de novo.]
-Fronteira do parser: valida a forma do JSON, não o conteúdo (exemplo: "banco"
-preenchido como emissor).
 
 ## Casos de teste
 - Gabarito: 10 relatos fictícios com resultado esperado.
@@ -89,12 +84,11 @@ preenchido como emissor).
 - Não recomenda nem avalia investimentos.
 - Não confere se valores e taxas existiram, nem isenção de imposto ou risco.
 - Sem banco de dados e sem interface web. Só português do Brasil.
-- [Repetição automática da chamada, se for o caso.]
 
 ## Critérios de aceite
-[Lista verificável: entrada vazia é rejeitada; cada erro previsto gera mensagem
-sem traceback e sem chave; os testes simulados passam; o fluxo normal funciona
-com a API real; o README permite rodar em ambiente limpo.]
+Lista verificável: entrada vazia é rejeitada; cada erro previsto gera mensagem
+sem traceback e sem chave; os testes simulados passam;
+
 ## Mudanças de ideia durante o projeto
 
 - 02/11/2026
