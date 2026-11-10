@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 
 from .erros import ConfiguracaoInvalida, CredencialAusente
 
-
 @dataclass(frozen=True)
 class Config:
     api_key: str
@@ -15,6 +14,7 @@ class Config:
     temperature: float
     max_tokens: int
     timeout: int
+    espera_prontidao: int
 
 
 def _ler(nome: str) -> str:
@@ -23,10 +23,6 @@ def _ler(nome: str) -> str:
 
 def carregar_config() -> Config:
     load_dotenv()
-
-    api_key = _ler("LLM_API_KEY")
-    if not api_key:
-        raise CredencialAusente()
 
     faltando = [n for n in ("LLM_BASE_URL", "LLM_MODEL") if not _ler(n)]
     if faltando:
@@ -41,7 +37,8 @@ def carregar_config() -> Config:
     try:
         temperature = float(_ler("LLM_TEMPERATURE") or "0")
         max_tokens = int(_ler("LLM_MAX_TOKENS") or "2048")
-        timeout = int(_ler("LLM_TIMEOUT_SEGUNDOS") or "30")
+        timeout = int(_ler("LLM_TIMEOUT_SEGUNDOS") or "120")
+        espera_prontidao = int(_ler("LLM_ESPERA_PRONTIDAO_SEGUNDOS") or "180")
     except ValueError:
         raise ConfiguracaoInvalida(
             "LLM_TEMPERATURE, LLM_MAX_TOKENS e LLM_TIMEOUT_SEGUNDOS devem ser números."
@@ -49,4 +46,15 @@ def carregar_config() -> Config:
     if max_tokens <= 0 or timeout <= 0:
         raise ConfiguracaoInvalida("LLM_MAX_TOKENS e LLM_TIMEOUT_SEGUNDOS devem ser maiores que zero.")
 
-    return Config(api_key, base_url, _ler("LLM_MODEL"), temperature, max_tokens, timeout)
+    if espera_prontidao < 0:
+        raise ConfiguracaoInvalida("LLM_ESPERA_PRONTIDAO_SEGUNDOS não pode ser negativo.")
+
+    return Config(
+        api_key=_ler("LLM_API_KEY"),
+        base_url=base_url,
+        model=_ler("LLM_MODEL"),
+        temperature=temperature,
+        max_tokens=max_tokens,
+        timeout=timeout,
+        espera_prontidao=espera_prontidao,
+    )

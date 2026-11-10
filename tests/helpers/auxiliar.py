@@ -12,7 +12,7 @@ from unittest import mock
 CHAVE_FALSA = "AIzaChaveDeTesteNaoReal"
 ENV_VALIDO = {
     "LLM_API_KEY": CHAVE_FALSA,
-    "LLM_BASE_URL": "https://api.exemplo.test/v1beta",
+    "LLM_BASE_URL": "https://llm.exemplo.test:900",
     "LLM_MODEL": "modelo-teste",
 }
 
@@ -54,8 +54,17 @@ def resposta_falsa(status=200, corpo=None):
 
 
 def corpo_api(texto):
-    """Envelope de sucesso no formato da API (generateContent)."""
-    return {"candidates": [{"content": {"parts": [{"text": texto}]}}]}
+    """Envelope de sucesso no formato do Ollama (/api/chat)."""
+    return {"message": {"role": "assistant", "content": texto},
+            "done": True, "done_reason": "stop"}
+
+
+@contextmanager
+def servidor_pronto():
+    """Simula o GET de prontidão respondendo 200, sem rede."""
+    with mock.patch("diario_rf.llm_client.requests.get",
+                    return_value=resposta_falsa(200, {})):
+        yield
 
 
 def registro_com_operacao(**mudancas) -> str:
