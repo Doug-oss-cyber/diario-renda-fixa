@@ -1,13 +1,17 @@
-"""Cliente REST do LLM (formato Gemini generateContent).
+"""Cliente REST do LLM (API de chat do Ollama, /api/chat).
 
-Responsabilidades separadas: montar a requisição, chamar o modelo e extrair
-o texto da resposta. Todo erro vira uma exceção de erros.py, sem expor a chave.
+Responsabilidades separadas: montar a requisição, esperar o servidor ficar
+pronto, chamar o modelo e extrair o texto da resposta. Todo erro vira uma
+exceção de erros.py, sem expor a chave.
 """
+import time
+
 import requests
 
 from .config import Config
 from .erros import (
     ConfiguracaoInvalida,
+    CredencialAusente,
     CredencialInvalida,
     FalhaComunicacao,
     RespostaInvalida,
@@ -20,32 +24,29 @@ STATUS_INDISPONIVEL = {500, 502, 503, 504}
 
 
 def montar_requisicao(texto: str, cfg: Config) -> tuple[str, dict, dict]:
-    """Prepara URL, cabeçalhos e corpo. A chave vai no cabeçalho, nunca na URL."""
-    url = f"{cfg.base_url.rstrip('/')}/models/{cfg.model}:generateContent"
-    cabecalhos = {"x-goog-api-key": cfg.api_key, "Content-Type": "application/json"}
+    """Prepara URL, cabeçalhos e corpo."""
+    url = f"{cfg.base_url.rstrip('/')}/api/chat"
+    cabecalhos = {"Content-Type": "application/json"}
+    if cfg.api_key:
+        cabecalhos["Authorization"] = f"Bearer {cfg.api_key}"
     corpo = {
-        "system_instruction": {"parts": [{"text": PROMPT_SISTEMA}]},
-        "contents": [{"role": "user", "parts": [{"text": montar_entrada(texto)}]}],
-        "generationConfig": {
-            "temperature": cfg.temperature,
-            "maxOutputTokens": cfg.max_tokens,
-            "responseMimeType": "application/json",
-        },
+        "model": cfg.model,
+        "messages": [
+            {"role": "system", "content": PROMPT_SISTEMA},
+            {"role": "user", "content": montar_entrada(texto)},
+        ],
+        "stream": False,
+        "format": "json",
+        "think": False,
+        "options": {"temperature": cfg.temperature, "num_predict": cfg.max_tokens},
     }
     return url, cabecalhos, corpo
 
 
-def _detalhe_erro(resp: requests.Response) -> str:
-    try:
-        return str(resp.json().get("error", {}).get("message", "")).lower()
-    except (ValueError, AttributeError):
-        return ""
-
-
-def _levantar_por_status(resp: requests.Response) -> None:
+def _levantar_por_status(resp: requests.Response, com_chave: bool) -> None:
     status = resp.status_code
-    if status in (401, 403) or (status == 400 and "api key" in _detalhe_erro(resp)):
-        raise CredencialInvalida()
+    if status in (401, 403):
+        raise CredencialInvalida() if com_chave else CredencialAusente()
     if status == 404:
         raise ConfiguracaoInvalida(
             "Modelo ou endereço não encontrado. Confira LLM_MODEL e LLM_BASE_URL no .env."
@@ -71,7 +72,7 @@ def chamar_modelo(url: str, cabecalhos: dict, corpo: dict, timeout: int) -> dict
         raise FalhaComunicacao("Falha inesperada ao chamar o serviço.") from e
 
     if not resp.ok:
-        _levantar_por_status(resp)
+        _levantar_por_status(resp, com_chave="Authorization" in cabecalhos)
     try:
         return resp.json()
     except ValueError as e:
@@ -79,21 +80,47 @@ def chamar_modelo(url: str, cabecalhos: dict, corpo: dict, timeout: int) -> dict
 
 
 def extrair_texto(dados: dict) -> str:
-    """Pega o texto gerado dentro do envelope da API."""
+    """Pega o texto gerado dentro do envelope da API do Ollama."""
+    if not isinstance(dados, dict):
+        raise RespostaInvalida()
     try:
-        texto = dados["candidates"][0]["content"]["parts"][0]["text"]
-    except (KeyError, IndexError, TypeError):
-        bloqueio = dados.get("promptFeedback", {}).get("blockReason") if isinstance(dados, dict) else None
-        if bloqueio:
-            raise RespostaInvalida("O serviço bloqueou a resposta para esta entrada.") from None
+        texto = dados["message"]["content"]
+    except (KeyError, TypeError):
         raise RespostaInvalida() from None
+    if dados.get("done_reason") == "length":
+        raise RespostaInvalida(
+            "A resposta foi cortada pelo limite de tokens. Aumente LLM_MAX_TOKENS no .env."
+        )
     if not isinstance(texto, str) or not texto.strip():
         raise RespostaInvalida()
     return texto
 
 
+def aguardar_prontidao(cfg: Config, dormir=time.sleep, agora=time.monotonic) -> None:
+    """Espera o servidor responder (a LLM leva 1 a 2 min após o container iniciar).
+
+    Qualquer resposta HTTP, exceto 502/503/504, conta como servidor pronto.
+    """
+    limite = agora() + cfg.espera_prontidao
+    url = f"{cfg.base_url.rstrip('/')}/api/tags"
+    while True:
+        try:
+            r = requests.get(url, timeout=10)
+            if r.status_code not in STATUS_INDISPONIVEL:
+                return
+        except requests.RequestException:
+            pass
+        if agora() >= limite:
+            raise ServicoIndisponivel(
+                "A LLM ainda não respondeu. Se o container acabou de iniciar, "
+                "aguarde 1 a 2 minutos e tente novamente."
+            )
+        dormir(10)
+
+
 def extrair_registro(texto: str, cfg: Config) -> str:
-    """Fluxo completo: monta, chama e extrai o texto bruto do modelo."""
+    """Fluxo completo: espera, monta, chama e extrai o texto bruto do modelo."""
+    aguardar_prontidao(cfg)
     url, cabecalhos, corpo = montar_requisicao(texto, cfg)
     dados = chamar_modelo(url, cabecalhos, corpo, cfg.timeout)
     return extrair_texto(dados)
