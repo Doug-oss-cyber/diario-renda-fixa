@@ -9,7 +9,7 @@ Nenhuma saída abaixo contém chave ou credencial.
 | Fase | Provedor | Commit/tag | Observação |
 |---|---|---|---|
 | 1 | Gemini (`gemini-3.1-flash-lite`), API REST do Google AI Studio | `dafe5cafa4da5ce7d6b6696d463f4403c4d6ffe3` | Usado enquanto o LLM institucional não estava liberado |
-| 2 | Ollama interno (`qwen3.5:9b-q4_K_M`) na plataforma Devel Lab | `` | Mudança registrada em 09/11/2026 |
+| 2 | Ollama interno (`qwen3.5:9b-q4_K_M`) na plataforma Devel Lab | `a02c47124d1a1cc067765c5af24ab25cdf3dc2d7` | Mudança registrada em 10/11/2026 |
 
 O Ollama interno não exige autenticação. Por isso, a partir da fase 2, credencial
 ausente e credencial inválida são demonstradas por **testes simulados**, como
