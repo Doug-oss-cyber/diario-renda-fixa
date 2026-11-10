@@ -19,8 +19,7 @@ RE_VENCIMENTO = re.compile(r"^\d{4}(-\d{2})?$")
 
 
 def _remover_cercas(texto: str) -> str:
-    """Tira os ```json ... ``` que alguns modelos colocam ao redor do JSON."""
-    t = texto.strip()
+    t = re.sub(r"<think>.*?</think>", "", texto, flags=re.DOTALL).strip()
     if t.startswith("```"):
         t = re.sub(r"^```[a-zA-Z]*\s*", "", t)
         t = re.sub(r"\s*```$", "", t)

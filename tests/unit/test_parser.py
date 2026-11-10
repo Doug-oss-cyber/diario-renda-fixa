@@ -46,6 +46,10 @@ class TestParserAceita(unittest.TestCase):
         op = interpretar_resposta(registro_com_operacao(data_vencimento="2040"))["operacoes"][0]
         self.assertEqual(op["data_vencimento"], "2040")
 
+    def test_bloco_think_e_removido(self):
+        texto = "<think>vou analisar o relato...</think>\n" + json.dumps(REGISTRO_INVALIDO)
+        self.assertFalse(interpretar_resposta(texto)["operacao_valida"])
+
 
 class TestParserRejeita(unittest.TestCase):
     def test_respostas_defeituosas(self):
