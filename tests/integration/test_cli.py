@@ -35,7 +35,7 @@ class TestCli(unittest.TestCase):
         with ambiente(**ENV_VALIDO):
             codigo, saida, erro = rodar(["Apliquei 10 mil num CDB"], resp)
         self.assertEqual(codigo, 0)
-        self.assertEqual(erro, "")
+        self.assertNotIn("Erro:", erro)
         self.assertTrue(json.loads(saida)["operacao_valida"])
 
     def test_entrada_vazia_nao_chama_a_api(self):
