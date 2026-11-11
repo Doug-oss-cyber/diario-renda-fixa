@@ -129,10 +129,14 @@ Resultado: `51 passed, 81 subtests passed in 0.17s`
 - Fluxo normal com Ollama: [ainda por preencher: resultado]
 - Observações sobre a qualidade (diferenças em relação ao Gemini): [ainda por preencher]
 
-## 5. Problemas encontrados e correções
+## 5. Evidências reais com o modelo em produção
 
-| Problema | Como foi identificado | Correção |
-|---|---|---|
+### 5.1 LLM não respondendo (real)
+
+| Campo              | Valor |
+|--------------------|-------|
+| **Data e hora**           | 10/11/2026 16:09 |
+| **Resposta** | Erro: A LLM ainda não respondeu. Se o container acabou de iniciar, aguarde 1 a 2 minutos e tente novamente. |
 
 ## 6. Conferência de segredos
 
