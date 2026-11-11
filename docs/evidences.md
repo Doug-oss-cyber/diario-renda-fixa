@@ -137,6 +137,8 @@ Resultado: `51 passed, 81 subtests passed in 0.17s`
 |--------------------|-------|
 | **Data e hora**           | 10/11/2026 16:09 |
 | **Resposta** | Erro: A LLM ainda não respondeu. Se o container acabou de iniciar, aguarde 1 a 2 minutos e tente novamente. |
+| **Data e hora** | 11/11/2026 19:24                                                      |
+| **Resposta**    | Execução encerrada: FalhaComunicacao (LLM não respondeu — timeout 0 s) |
 
 ## 6. Conferência de segredos
 
