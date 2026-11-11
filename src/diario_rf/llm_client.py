@@ -118,6 +118,7 @@ def aguardar_prontidao(cfg: Config, dormir=time.sleep, agora=time.monotonic) -> 
                 return
             ultima_falha = f"HTTP {r.status_code}"
         except requests.exceptions.SSLError as e:
+            log.error("Detalhe do erro de certificado: %s", e)
             raise FalhaComunicacao(
                 "Não foi possível validar o certificado HTTPS do servidor da LLM."
             ) from e
