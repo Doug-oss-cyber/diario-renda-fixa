@@ -5,6 +5,7 @@ pronto, chamar o modelo e extrair o texto da resposta. Todo erro vira uma
 exceção de erros.py, sem expor a chave.
 """
 import time
+import logging
 
 import requests
 
@@ -21,6 +22,8 @@ from .erros import (
 from .prompts import PROMPT_SISTEMA, montar_entrada
 
 STATUS_INDISPONIVEL = {500, 502, 503, 504}
+
+log = logging.getLogger("diario_rf")
 
 
 def montar_requisicao(texto: str, cfg: Config) -> tuple[str, dict, dict]:
@@ -66,6 +69,10 @@ def chamar_modelo(url: str, cabecalhos: dict, corpo: dict, timeout: int) -> dict
         resp = requests.post(url, headers=cabecalhos, json=corpo, timeout=timeout)
     except requests.Timeout as e:
         raise TempoEsgotado() from e
+    except requests.exceptions.SSLError as e:
+        raise FalhaComunicacao(
+            "Não foi possível validar o certificado HTTPS do servidor da LLM."
+        ) from e
     except requests.ConnectionError as e:
         raise FalhaComunicacao() from e
     except requests.RequestException as e:
@@ -103,24 +110,34 @@ def aguardar_prontidao(cfg: Config, dormir=time.sleep, agora=time.monotonic) -> 
     """
     limite = agora() + cfg.espera_prontidao
     url = f"{cfg.base_url.rstrip('/')}/api/tags"
+    ultima_falha = "sem resposta"
     while True:
         try:
             r = requests.get(url, timeout=10)
             if r.status_code not in STATUS_INDISPONIVEL:
                 return
-        except requests.RequestException:
-            pass
+            ultima_falha = f"HTTP {r.status_code}"
+        except requests.exceptions.SSLError as e:
+            raise FalhaComunicacao(
+                "Não foi possível validar o certificado HTTPS do servidor da LLM."
+            ) from e
+        except requests.RequestException as e:
+            ultima_falha = type(e).__name__
+        log.info("LLM ainda indisponível (%s)", ultima_falha)
         if agora() >= limite:
             raise ServicoIndisponivel(
-                "A LLM ainda não respondeu. Se o container acabou de iniciar, "
-                "aguarde 1 a 2 minutos e tente novamente."
+                f"A LLM ainda não respondeu (último erro: {ultima_falha}). "
+                "Se o container acabou de iniciar, aguarde 1 a 2 minutos e tente novamente."
             )
         dormir(10)
 
 
 def extrair_registro(texto: str, cfg: Config) -> str:
     """Fluxo completo: espera, monta, chama e extrai o texto bruto do modelo."""
+    log.info("Aguardando a LLM (até %d s)", cfg.espera_prontidao)
     aguardar_prontidao(cfg)
+    log.info("LLM disponível; enviando solicitação ao modelo %s", cfg.model)
     url, cabecalhos, corpo = montar_requisicao(texto, cfg)
     dados = chamar_modelo(url, cabecalhos, corpo, cfg.timeout)
+    log.info("Resposta recebida")
     return extrair_texto(dados)

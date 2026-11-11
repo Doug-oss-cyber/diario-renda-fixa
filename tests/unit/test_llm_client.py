@@ -135,6 +135,12 @@ class TestChamarModelo(unittest.TestCase):
             with self.assertRaises(RespostaInvalida):
                 chamar()
 
+    def test_erro_de_certificado_nao_fica_tentando(self):
+        with mock.patch(GET, side_effect=requests.exceptions.SSLError("cert")) as get:
+            with self.assertRaises(FalhaComunicacao):
+                aguardar_prontidao(replace(CFG, espera_prontidao=60), lambda s: None)
+        self.assertEqual(get.call_count, 1)
+
 
 class TestExtrairTexto(unittest.TestCase):
     def test_texto_valido(self):
@@ -180,6 +186,12 @@ class TestAguardarProntidao(unittest.TestCase):
         with mock.patch(GET, side_effect=requests.ConnectionError()) as get:
             with self.assertRaises(ServicoIndisponivel):
                 aguardar_prontidao(CFG, lambda s: None)
+        self.assertEqual(get.call_count, 1)
+
+    def test_erro_de_certificado_nao_fica_tentando(self):
+        with mock.patch(GET, side_effect=requests.exceptions.SSLError("cert")) as get:
+            with self.assertRaises(FalhaComunicacao):
+                aguardar_prontidao(replace(CFG, espera_prontidao=60), lambda s: None)
         self.assertEqual(get.call_count, 1)
 
 
