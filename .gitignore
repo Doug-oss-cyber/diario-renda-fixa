@@ -16,3 +16,6 @@ __pycache__/
 
 # Dados locais
 diario.jsonl
+
+# Arquivos locais
+*.tar
