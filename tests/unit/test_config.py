@@ -1,4 +1,5 @@
 import unittest
+import tempfile
 
 from helpers.auxiliar import CHAVE_FALSA, ENV_VALIDO, ambiente
 from diario_rf.config import carregar_config
@@ -43,6 +44,29 @@ class TestConfig(unittest.TestCase):
             cfg = carregar_config()
         self.assertEqual((cfg.temperature, cfg.max_tokens, cfg.timeout, cfg.espera_prontidao), (0.2, 500, 150, 210))
         self.assertEqual(cfg.api_key, CHAVE_FALSA)
+
+    def test_ssl_padrao_verifica(self):
+        with ambiente(**ENV_VALIDO):
+            self.assertIs(carregar_config().verificar_ssl, True)
+
+    def test_ssl_pode_ser_desativado_explicitamente(self):
+        with ambiente(**ENV_VALIDO, LLM_VERIFICAR_SSL="false"):
+            self.assertIs(carregar_config().verificar_ssl, False)
+
+    def test_ssl_valor_invalido(self):
+        with ambiente(**ENV_VALIDO, LLM_VERIFICAR_SSL="talvez"):
+            with self.assertRaises(ConfiguracaoInvalida):
+                carregar_config()
+
+    def test_ca_bundle_existente_tem_precedencia(self):
+        with tempfile.NamedTemporaryFile(suffix=".pem") as f:
+            with ambiente(**ENV_VALIDO, LLM_CA_BUNDLE=f.name, LLM_VERIFICAR_SSL="false"):
+                self.assertEqual(carregar_config().verificar_ssl, f.name)
+
+    def test_ca_bundle_inexistente(self):
+        with ambiente(**ENV_VALIDO, LLM_CA_BUNDLE="/nao/existe.pem"):
+            with self.assertRaises(ConfiguracaoInvalida):
+                carregar_config()
 
 
 if __name__ == "__main__":

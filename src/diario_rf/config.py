@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from dotenv import load_dotenv
 
-from .erros import ConfiguracaoInvalida, CredencialAusente
+from .erros import ConfiguracaoInvalida
 
 @dataclass(frozen=True)
 class Config:
@@ -15,11 +15,10 @@ class Config:
     max_tokens: int
     timeout: int
     espera_prontidao: int
-
+    verificar_ssl: bool | str = True  # True, False ou caminho de um certificado (CA)
 
 def _ler(nome: str) -> str:
     return (os.getenv(nome) or "").strip()
-
 
 def carregar_config() -> Config:
     load_dotenv()
@@ -49,6 +48,19 @@ def carregar_config() -> Config:
     if espera_prontidao < 0:
         raise ConfiguracaoInvalida("LLM_ESPERA_PRONTIDAO_SEGUNDOS não pode ser negativo.")
 
+    ca = _ler("LLM_CA_BUNDLE")
+    modo = _ler("LLM_VERIFICAR_SSL").lower()
+    if ca:
+        if not os.path.isfile(ca):
+            raise ConfiguracaoInvalida("LLM_CA_BUNDLE aponta para um arquivo que não existe.")
+        verificar_ssl = ca
+    elif modo in ("false", "0", "nao", "não"):
+        verificar_ssl = False
+    elif modo in ("", "true", "1", "sim"):
+        verificar_ssl = True
+    else:
+        raise ConfiguracaoInvalida("LLM_VERIFICAR_SSL deve ser true ou false.")
+
     return Config(
         api_key=_ler("LLM_API_KEY"),
         base_url=base_url,
@@ -57,4 +69,6 @@ def carregar_config() -> Config:
         max_tokens=max_tokens,
         timeout=timeout,
         espera_prontidao=espera_prontidao,
+        verificar_ssl=verificar_ssl
     )
+
