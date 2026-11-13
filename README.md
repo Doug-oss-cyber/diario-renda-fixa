@@ -162,10 +162,12 @@ encerra com código de saída 1.
 ## Testes
 
 ```bash
-PYTHONPATH=src python -m unittest discover -s tests -v
+pip install pytest
 ```
 
-Também funcionam com `pytest` (`pip install pytest` e depois `pytest`).
+```bash
+pytest
+```
 
 **Testes simulados (automáticos).** Todos os testes da pasta `tests/` usam respostas
 simuladas e não chamam o LLM: configuração (incluindo as opções de SSL), cliente HTTP
