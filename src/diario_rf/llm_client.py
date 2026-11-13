@@ -6,7 +6,7 @@ exceção de erros.py, sem expor a chave.
 """
 import time
 import logging
-
+import urllib3
 import requests
 
 from .config import Config
@@ -63,28 +63,29 @@ def _levantar_por_status(resp: requests.Response, com_chave: bool) -> None:
     raise FalhaComunicacao(f"A API recusou a solicitação (status HTTP {status}).")
 
 
-def chamar_modelo(url: str, cabecalhos: dict, corpo: dict, timeout: int) -> dict:
-    """Faz o POST e devolve o JSON da resposta, traduzindo as falhas previstas."""
+def chamar_modelo(url: str, cabecalhos: dict, corpo: dict, timeout: int, verificar_ssl: bool | str = True) -> dict:
+    """Faz o POST e devolve o JSON da resposta."""
     try:
-        resp = requests.post(url, headers=cabecalhos, json=corpo, timeout=timeout)
+        resp = requests.post(url, headers=cabecalhos, json=corpo, timeout=timeout, verify=verificar_ssl)
     except requests.Timeout as e:
         raise TempoEsgotado() from e
     except requests.exceptions.SSLError as e:
-        raise FalhaComunicacao(
-            "Não foi possível validar o certificado HTTPS do servidor da LLM."
-        ) from e
+        raise FalhaComunicacao("Não foi possível validar o certificado HTTPS do servidor da LLM.") from e
     except requests.ConnectionError as e:
         raise FalhaComunicacao() from e
     except requests.RequestException as e:
         raise FalhaComunicacao("Falha inesperada ao chamar o serviço.") from e
 
     if not resp.ok:
-        _levantar_por_status(resp, com_chave="Authorization" in cabecalhos)
+        _levantar_por_status(
+            resp,
+            com_chave="Authorization" in cabecalhos
+        )
+
     try:
         return resp.json()
     except ValueError as e:
         raise RespostaInvalida() from e
-
 
 def extrair_texto(dados: dict) -> str:
     """Pega o texto gerado dentro do envelope da API do Ollama."""
@@ -113,7 +114,7 @@ def aguardar_prontidao(cfg: Config, dormir=time.sleep, agora=time.monotonic) -> 
     ultima_falha = "sem resposta"
     while True:
         try:
-            r = requests.get(url, timeout=10)
+            r = requests.get(url, timeout=10, verify=cfg.verificar_ssl)
             if r.status_code not in STATUS_INDISPONIVEL:
                 return
             ultima_falha = f"HTTP {r.status_code}"
@@ -135,10 +136,13 @@ def aguardar_prontidao(cfg: Config, dormir=time.sleep, agora=time.monotonic) -> 
 
 def extrair_registro(texto: str, cfg: Config) -> str:
     """Fluxo completo: espera, monta, chama e extrai o texto bruto do modelo."""
+    if cfg.verificar_ssl is False:
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        log.warning("Verificação do certificado HTTPS desativada (LLM_VERIFICAR_SSL=false)")
     log.info("Aguardando a LLM (até %d s)", cfg.espera_prontidao)
     aguardar_prontidao(cfg)
     log.info("LLM disponível; enviando solicitação ao modelo %s", cfg.model)
     url, cabecalhos, corpo = montar_requisicao(texto, cfg)
-    dados = chamar_modelo(url, cabecalhos, corpo, cfg.timeout)
+    dados = chamar_modelo(url, cabecalhos, corpo, cfg.timeout, cfg.verificar_ssl)
     log.info("Resposta recebida")
     return extrair_texto(dados)

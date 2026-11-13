@@ -141,6 +141,15 @@ class TestChamarModelo(unittest.TestCase):
                 aguardar_prontidao(replace(CFG, espera_prontidao=60), lambda s: None)
         self.assertEqual(get.call_count, 1)
 
+    def test_verify_e_repassado_na_prontidao(self):
+        with mock.patch(GET, return_value=resposta_falsa(200, {})) as get:
+            aguardar_prontidao(replace(CFG, verificar_ssl="/certs/ca.pem"))
+        self.assertEqual(get.call_args.kwargs["verify"], "/certs/ca.pem")
+
+    def test_verify_e_repassado_na_chamada(self):
+        with mock.patch(POST, return_value=resposta_falsa(200, {"ok": 1})) as post:
+            chamar_modelo("https://x.test", COM_CHAVE, {}, 5, verificar_ssl=False)
+        self.assertIs(post.call_args.kwargs["verify"], False)
 
 class TestExtrairTexto(unittest.TestCase):
     def test_texto_valido(self):
