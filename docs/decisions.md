@@ -72,9 +72,19 @@ determinístico (campos_ausentes).
 Um módulo por responsabilidade: cli (entrada/apresentação), config, prompts
 (preparação), llm_client (chamada), parser (resposta), erros (mensagens).
 
-## Erros tratados
+## Tratamento de erros
+
+Toda falha de configuração, rede ou resposta do modelo vira uma exceção própria
+(`erros.py`) com mensagem curta para o usuário. O programa nunca mostra traceback e nunca
+inclui a chave nas mensagens, e encerra com código de saída 1. A tradução de status HTTP
+em exceção fica concentrada no `llm_client`, para a CLI só apresentar a mensagem.
+
+Como o LLM institucional leva 1 a 2 minutos para responder após o container subir, o
+cliente espera o servidor ficar pronto antes de chamar o modelo, em vez de falhar na
+primeira tentativa. A lista completa de situações e mensagens está no README.
 
 ## Casos de teste
+
 - Gabarito: 10 relatos fictícios com resultado esperado.
 - 42 testes simulados (config, cliente HTTP, parser, entrada vazia, CLI).
 - Testes reais: fluxo normal, credencial inválida, credencial ausente
@@ -130,6 +140,25 @@ sem traceback e sem chave; os testes simulados passam;
   Caso 6, taxa_valor. O modelo devolveu "8,67% a.a" e o gabarito tem "8,67% a.a.". 
   Isso não é erro do modelo, e sim a necessidade de normalizar o texto na comparação.
   ```
+
+  - 13/11/2026
+
+  ```
+  Limitação do certificado HTTPS. O servidor da LLM institucional (ingress do Kubernetes)
+  ainda não tem certificado válido para o seu endereço. Ele apresenta o certificado de
+  reserva do controlador (Kubernetes Ingress Controller Fake Certificate, DNS:ingress.local),
+  cujo nome não bate com o host e que pode mudar a cada reinício. Por isso o LLM_CA_BUNDLE
+  não resolve o problema.
+  ```
+
+  ```
+  Como contorno temporário, a verificação do certificado foi desativada
+  (LLM_VERIFICAR_SSL=false), com aviso no log a cada execução. Com isso a conexão deixa de
+  ser autenticada e fica sujeita a interceptação, inclusive da chave de API. A correção
+  definitiva depende da configuração do certificado na plataforma; depois dela, o
+  contorno deve ser removido.
+  ```
+  
 ## Uso de ferramentas de IA
 
 A ideia do projeto, um diário de operações de renda fixa, surgiu em 02/11/2026. Durante o desenvolvimento, usei o Claude (Anthropic) como apoio, nos seguintes pontos:
