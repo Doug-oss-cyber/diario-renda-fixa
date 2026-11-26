@@ -4,11 +4,13 @@ import json
 import logging
 import os
 import sys
+import time
 
 from .config import carregar_config
 from .erros import EntradaVazia, ErroDiario
 from .llm_client import extrair_registro
 from .parser import interpretar_resposta
+from .registro import configurar_registro
 
 log = logging.getLogger("diario_rf")
 
@@ -27,28 +29,34 @@ def _ler_entrada(argumento: str | None) -> str:
 
 
 def main() -> int:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(message)s",
-        stream=sys.stderr,
-    )
+    configurar_registro()
     ap = argparse.ArgumentParser(description="Diário de operações de renda fixa")
     ap.add_argument("anotacao", nargs="?", help="texto da anotação (opcional)")
     args = ap.parse_args()
+    inicio = time.monotonic()
 
     try:
         texto = _ler_entrada(args.anotacao)
         if not texto.strip():
             raise EntradaVazia()
-        log.info("Anotação recebida (%d caracteres)", len(texto))
+        log.info("execucao_iniciada entrada_caracteres=%d", len(texto))
         cfg = carregar_config()
+        log.info("config_carregada modelo=%s", cfg.model)
         resposta = extrair_registro(texto, cfg)
         registro = interpretar_resposta(resposta)
     except ErroDiario as e:
-        log.warning("Execução encerrada: %s", type(e).__name__)
+        log.warning("erro tipo=%s", type(e).__name__)
         print(f"Erro: {e.mensagem}", file=sys.stderr)
         return 1
+    except Exception as e:
+        log.error("erro_inesperado tipo=%s", type(e).__name__)
+        print("Erro: ocorreu um problema inesperado. Veja o registro de execução.", file=sys.stderr,)
+        return 2
 
+    log.info(
+        "sucesso operacoes=%d duracao_s=%.1f",
+        len(registro["operacoes"]), time.monotonic() - inicio,
+                                    )
     print(json.dumps(registro, ensure_ascii=False, indent=2))
     return 0
 
