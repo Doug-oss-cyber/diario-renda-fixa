@@ -14,10 +14,13 @@ POST = "diario_rf.llm_client.requests.post"
 
 def rodar(argv, resposta=None):
     saida, erro = io.StringIO(), io.StringIO()
-    with mock.patch("sys.argv", ["cli", *argv]), \
-            servidor_pronto(), \
-            mock.patch(POST, return_value=resposta), \
-            redirect_stdout(saida), redirect_stderr(erro):
+    with (
+        mock.patch("sys.argv", ["cli", *argv]),
+        servidor_pronto(),
+        mock.patch(POST, return_value=resposta),
+        redirect_stdout(saida),
+        redirect_stderr(erro),
+    ):
         codigo = cli.main()
     return codigo, saida.getvalue(), erro.getvalue()
 
@@ -38,16 +41,20 @@ class TestCli(unittest.TestCase):
         self.assertNotIn("Erro:", erro)
         self.assertTrue(json.loads(saida)["operacao_valida"])
 
-    def test_entrada_vazia_nao_chama_a_api(self):
-        for entrada in ("", "   "):
-            with self.subTest(entrada=repr(entrada)):
-                with ambiente(**ENV_VALIDO), mock.patch(POST) as post:
-                    with mock.patch("sys.argv", ["cli", entrada]), \
-                            redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()) as erro:
+        def test_entrada_vazia_nao_chama_a_api(self):
+            for entrada in ("", "   "):
+                with self.subTest(entrada=repr(entrada)):
+                    with (
+                        ambiente(**ENV_VALIDO),
+                        mock.patch(POST) as post,
+                        mock.patch("sys.argv", ["cli", entrada]),
+                        redirect_stdout(io.StringIO()),
+                        redirect_stderr(io.StringIO()) as erro,
+                    ):
                         codigo = cli.main()
-                self.assertEqual(codigo, 1)
-                self.assertIn("vazia", erro.getvalue())
-                post.assert_not_called()
+                    self.assertEqual(codigo, 1)
+                    self.assertIn("vazia", erro.getvalue())
+                    post.assert_not_called()
 
     def test_credencial_ausente(self):
         env = {k: v for k, v in ENV_VALIDO.items() if k != "LLM_API_KEY"}
@@ -77,6 +84,20 @@ class TestCli(unittest.TestCase):
         with ambiente(**ENV_VALIDO, DIARIO_ANOTACAO="Apliquei 10 mil num CDB"):
             codigo, saida, erro = rodar([], resp)
         self.assertEqual(codigo, 0)
+        self.assertTrue(json.loads(saida)["operacao_valida"])
 
+    def test_erro_inesperado_nao_mostra_traceback(self):
+        with (
+            ambiente(**ENV_VALIDO),
+            mock.patch("diario_rf.cli.extrair_registro", side_effect=RuntimeError("boom")),
+            mock.patch("sys.argv", ["cli", "oi"]),
+            redirect_stdout(io.StringIO()),
+            redirect_stderr(io.StringIO()) as erro,
+        ):
+           codigo = cli.main()
+        self.assertEqual(codigo, 2)
+        self.assertNotIn("Traceback", erro.getvalue())
+        self.assertNotIn("boom", erro.getvalue())
+        
 if __name__ == "__main__":
     unittest.main()
