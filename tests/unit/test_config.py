@@ -1,13 +1,13 @@
-import unittest
 import tempfile
+import unittest
 
 from helpers.auxiliar import CHAVE_FALSA, ENV_VALIDO, ambiente
 from diario_rf.config import carregar_config
-from diario_rf.erros import ConfiguracaoInvalida
+from diario_rf.erros import ConfiguracaoInvalida, CredencialAusente
 
 
 class TestConfig(unittest.TestCase):
-    def test_credencial_e_opcional(self):
+    def test_credencial_e_opcional_no_ollama(self):
         with ambiente(LLM_BASE_URL=ENV_VALIDO["LLM_BASE_URL"], LLM_MODEL="m"):
             self.assertEqual(carregar_config().api_key, "")
 
@@ -27,7 +27,8 @@ class TestConfig(unittest.TestCase):
         for nome, valor in [("LLM_TEMPERATURE", "quente"), ("LLM_MAX_TOKENS", "muitos"),
                             ("LLM_TIMEOUT_SEGUNDOS", "1.5"), ("LLM_MAX_TOKENS", "0"),
                             ("LLM_TIMEOUT_SEGUNDOS", "-3"),
-                            ("LLM_ESPERA_PRONTIDAO_SEGUNDOS", "abc"), ("LLM_ESPERA_PRONTIDAO_SEGUNDOS", "-1")]:
+                            ("LLM_ESPERA_PRONTIDAO_SEGUNDOS", "abc"),
+                            ("LLM_ESPERA_PRONTIDAO_SEGUNDOS", "-1")]:
             with self.subTest(nome=nome, valor=valor):
                 with ambiente(**{**ENV_VALIDO, nome: valor}):
                     with self.assertRaises(ConfiguracaoInvalida):
@@ -36,14 +37,40 @@ class TestConfig(unittest.TestCase):
     def test_valores_padrao(self):
         with ambiente(**ENV_VALIDO):
             cfg = carregar_config()
-        self.assertEqual((cfg.temperature, cfg.max_tokens, cfg.timeout, cfg.espera_prontidao), (0.0, 2048, 120, 180))
+        self.assertEqual(
+            (cfg.temperature, cfg.max_tokens, cfg.timeout, cfg.espera_prontidao),
+            (0.0, 2048, 120, 180),
+        )
 
     def test_valores_personalizados(self):
-        extra = {"LLM_TEMPERATURE": "0.2", "LLM_MAX_TOKENS": "500", "LLM_TIMEOUT_SEGUNDOS": "150", "LLM_ESPERA_PRONTIDAO_SEGUNDOS": "210"}
+        extra = {"LLM_TEMPERATURE": "0.2", "LLM_MAX_TOKENS": "500",
+                 "LLM_TIMEOUT_SEGUNDOS": "150", "LLM_ESPERA_PRONTIDAO_SEGUNDOS": "210"}
         with ambiente(**ENV_VALIDO, **extra):
             cfg = carregar_config()
-        self.assertEqual((cfg.temperature, cfg.max_tokens, cfg.timeout, cfg.espera_prontidao), (0.2, 500, 150, 210))
+        self.assertEqual(
+            (cfg.temperature, cfg.max_tokens, cfg.timeout, cfg.espera_prontidao),
+            (0.2, 500, 150, 210),
+        )
         self.assertEqual(cfg.api_key, CHAVE_FALSA)
+
+    def test_provedor_padrao_e_ollama(self):
+        with ambiente(**ENV_VALIDO):
+            self.assertEqual(carregar_config().provedor, "ollama")
+
+    def test_gemini_com_chave(self):
+        with ambiente(**ENV_VALIDO, LLM_PROVEDOR="gemini"):
+            self.assertEqual(carregar_config().provedor, "gemini")
+
+    def test_gemini_sem_chave_e_credencial_ausente(self):
+        env = {k: v for k, v in ENV_VALIDO.items() if k != "LLM_API_KEY"}
+        with ambiente(**env, LLM_PROVEDOR="gemini"):
+            with self.assertRaises(CredencialAusente):
+                carregar_config()
+
+    def test_provedor_invalido(self):
+        with ambiente(**ENV_VALIDO, LLM_PROVEDOR="gpt"):
+            with self.assertRaises(ConfiguracaoInvalida):
+                carregar_config()
 
     def test_ssl_padrao_verifica(self):
         with ambiente(**ENV_VALIDO):

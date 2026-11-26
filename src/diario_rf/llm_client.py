@@ -25,8 +25,7 @@ STATUS_INDISPONIVEL = {500, 502, 503, 504}
 
 log = logging.getLogger("diario_rf")
 
-
-def montar_requisicao(texto: str, cfg: Config) -> tuple[str, dict, dict]:
+def _montar_ollama(texto: str, cfg: Config) -> tuple[str, dict, dict]:
     """Prepara URL, cabeçalhos e corpo."""
     url = f"{cfg.base_url.rstrip('/')}/api/chat"
     cabecalhos = {"Content-Type": "application/json"}
@@ -45,10 +44,30 @@ def montar_requisicao(texto: str, cfg: Config) -> tuple[str, dict, dict]:
     }
     return url, cabecalhos, corpo
 
+def _montar_gemini(texto: str, cfg: Config) -> tuple[str, dict, dict]:
+    url = f"{cfg.base_url.rstrip('/')}/models/{cfg.model}:generateContent"
+    cabecalhos = {"x-goog-api-key": cfg.api_key, "Content-Type": "application/json"}
+    corpo = {
+        "system_instruction": {"parts": [{"text": PROMPT_SISTEMA}]},
+        "contents": [{"role": "user", "parts": [{"text": montar_entrada(texto)}]}],
+        "generationConfig": {
+            "temperature": cfg.temperature,
+            "maxOutputTokens": cfg.max_tokens,
+            "responseMimeType": "application/json",
+        },
+    }
+    return url, cabecalhos, corpo
+
+
+def montar_requisicao(texto: str, cfg: Config):
+    if cfg.provedor == "gemini":
+        return _montar_gemini(texto, cfg)
+    return _montar_ollama(texto, cfg)
+
 
 def _levantar_por_status(resp: requests.Response, com_chave: bool) -> None:
     status = resp.status_code
-    if status in (401, 403):
+    if status in (401, 403) or (status == 400 and "api key" in _detalhe_erro(resp)):
         raise CredencialInvalida() if com_chave else CredencialAusente()
     if status == 404:
         raise ConfiguracaoInvalida(
@@ -77,17 +96,15 @@ def chamar_modelo(url: str, cabecalhos: dict, corpo: dict, timeout: int, verific
         raise FalhaComunicacao("Falha inesperada ao chamar o serviço.") from e
 
     if not resp.ok:
-        _levantar_por_status(
-            resp,
-            com_chave="Authorization" in cabecalhos
-        )
+        com_chave = "Authorization" in cabecalhos or "x-goog-api-key" in cabecalhos
+        _levantar_por_status(resp, com_chave=com_chave)
 
     try:
         return resp.json()
     except ValueError as e:
         raise RespostaInvalida() from e
 
-def extrair_texto(dados: dict) -> str:
+def _extrair_texto_ollama(dados: dict) -> str:
     """Pega o texto gerado dentro do envelope da API do Ollama."""
     if not isinstance(dados, dict):
         raise RespostaInvalida()
@@ -103,6 +120,28 @@ def extrair_texto(dados: dict) -> str:
         raise RespostaInvalida()
     return texto
 
+def _extrair_texto_gemini(dados) -> str:
+    try:
+        candidato = dados["candidates"][0]
+        texto = candidato["content"]["parts"][0]["text"]
+    except (KeyError, IndexError, TypeError):
+        bloqueio = dados.get("promptFeedback", {}).get("blockReason") if isinstance(dados, dict) else None
+        if bloqueio:
+            raise RespostaInvalida("O serviço bloqueou a resposta para esta entrada.") from None
+        raise RespostaInvalida() from None
+    if candidato.get("finishReason") == "MAX_TOKENS":
+        raise RespostaInvalida(
+            "A resposta foi cortada pelo limite de tokens. Aumente LLM_MAX_TOKENS no .env."
+        )
+    if not isinstance(texto, str) or not texto.strip():
+        raise RespostaInvalida()
+    return texto
+
+
+def extrair_texto(dados, provedor: str = "ollama") -> str:
+    if provedor == "gemini":
+        return _extrair_texto_gemini(dados)
+    return _extrair_texto_ollama(dados)
 
 def aguardar_prontidao(cfg: Config, dormir=time.sleep, agora=time.monotonic) -> None:
     """Espera o servidor responder (a LLM leva 1 a 2 min após o container iniciar).
@@ -119,7 +158,6 @@ def aguardar_prontidao(cfg: Config, dormir=time.sleep, agora=time.monotonic) -> 
                 return
             ultima_falha = f"HTTP {r.status_code}"
         except requests.exceptions.SSLError as e:
-            log.error("Detalhe do erro de certificado: %s", e)
             raise FalhaComunicacao(
                 "Não foi possível validar o certificado HTTPS do servidor da LLM."
             ) from e
@@ -133,16 +171,24 @@ def aguardar_prontidao(cfg: Config, dormir=time.sleep, agora=time.monotonic) -> 
             )
         dormir(10)
 
+def _detalhe_erro(resp: requests.Response) -> str:
+    try:
+        return str(resp.json().get("error", {}).get("message", "")).lower()
+    except (ValueError, AttributeError):
+        return ""
+
 
 def extrair_registro(texto: str, cfg: Config) -> str:
-    """Fluxo completo: espera, monta, chama e extrai o texto bruto do modelo."""
+    """Fluxo completo: (espera), monta, chama e extrai o texto bruto do modelo."""
     if cfg.verificar_ssl is False:
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         log.warning("Verificação do certificado HTTPS desativada (LLM_VERIFICAR_SSL=false)")
-    log.info("Aguardando a LLM (até %d s)", cfg.espera_prontidao)
-    aguardar_prontidao(cfg)
-    log.info("LLM disponível; enviando solicitação ao modelo %s", cfg.model)
+    if cfg.provedor == "ollama":
+        log.info("Aguardando a LLM (até %d s)", cfg.espera_prontidao)
+        aguardar_prontidao(cfg)
+        log.info("LLM disponível")
+    log.info("Enviando solicitação ao modelo %s (%s)", cfg.model, cfg.provedor)
     url, cabecalhos, corpo = montar_requisicao(texto, cfg)
     dados = chamar_modelo(url, cabecalhos, corpo, cfg.timeout, cfg.verificar_ssl)
     log.info("Resposta recebida")
-    return extrair_texto(dados)
+    return extrair_texto(dados, cfg.provedor)

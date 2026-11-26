@@ -72,3 +72,6 @@ def registro_com_operacao(**mudancas) -> str:
     r = deepcopy(REGISTRO_CDB)
     r["operacoes"][0].update(mudancas)
     return json.dumps(r)
+
+def corpo_api_gemini(texto):
+    return {"candidates": [{"content": {"parts": [{"text": texto}]}}]}

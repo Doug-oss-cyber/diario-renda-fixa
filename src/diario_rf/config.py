@@ -4,7 +4,9 @@ from dataclasses import dataclass
 
 from dotenv import load_dotenv
 
-from .erros import ConfiguracaoInvalida
+from .erros import ConfiguracaoInvalida, CredencialAusente
+
+PROVEDORES = ("ollama", "gemini")
 
 @dataclass(frozen=True)
 class Config:
@@ -16,11 +18,20 @@ class Config:
     timeout: int
     espera_prontidao: int
     verificar_ssl: bool | str = True  # True, False ou caminho de um certificado (CA)
+    provedor: str = "ollama"
 
 def _ler(nome: str) -> str:
     return (os.getenv(nome) or "").strip()
 
 def carregar_config() -> Config:
+
+    provedor = (_ler("LLM_PROVEDOR") or "ollama").lower()
+    if provedor not in PROVEDORES:
+        raise ConfiguracaoInvalida("LLM_PROVEDOR deve ser ollama ou gemini.")
+    api_key = _ler("LLM_API_KEY")
+    if provedor == "gemini" and not api_key:
+        raise CredencialAusente()
+
     load_dotenv()
 
     faltando = [n for n in ("LLM_BASE_URL", "LLM_MODEL") if not _ler(n)]
@@ -69,6 +80,7 @@ def carregar_config() -> Config:
         max_tokens=max_tokens,
         timeout=timeout,
         espera_prontidao=espera_prontidao,
-        verificar_ssl=verificar_ssl
+        verificar_ssl=verificar_ssl,
+        provedor = provedor
     )
 

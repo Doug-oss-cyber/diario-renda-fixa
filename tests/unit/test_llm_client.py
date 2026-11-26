@@ -16,6 +16,9 @@ from diario_rf.erros import (
 from diario_rf.llm_client import (
     aguardar_prontidao, chamar_modelo, extrair_registro, extrair_texto, montar_requisicao,
 )
+from helpers.auxiliar import (
+    CHAVE_FALSA, REGISTRO_CDB, corpo_api, corpo_api_gemini, resposta_falsa, servidor_pronto,
+)
 
 CFG = Config(api_key=CHAVE_FALSA, base_url="https://llm.exemplo.test:9001/",
              model="modelo-teste", temperature=0.0, max_tokens=100, timeout=5,
@@ -24,6 +27,9 @@ POST = "diario_rf.llm_client.requests.post"
 GET = "diario_rf.llm_client.requests.get"
 COM_CHAVE = {"Authorization": f"Bearer {CHAVE_FALSA}"}
 SEM_CHAVE = {"Content-Type": "application/json"}
+
+# logo depois do CFG existente:
+CFG_GEMINI = replace(CFG, provedor="gemini", base_url="https://api.exemplo.test/v1beta/")
 
 
 def chamar(cabecalhos=None):
@@ -198,9 +204,10 @@ class TestAguardarProntidao(unittest.TestCase):
         self.assertEqual(get.call_count, 1)
 
     def test_erro_de_certificado_nao_fica_tentando(self):
+        rel = Relogio()
         with mock.patch(GET, side_effect=requests.exceptions.SSLError("cert")) as get:
             with self.assertRaises(FalhaComunicacao):
-                aguardar_prontidao(replace(CFG, espera_prontidao=60), lambda s: None)
+                aguardar_prontidao(replace(CFG, espera_prontidao=60), rel.dormir, rel.agora)
         self.assertEqual(get.call_count, 1)
 
 
