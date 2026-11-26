@@ -2,4 +2,5 @@
 .venv
 .idea
 tests
+logs
 __pycache__
